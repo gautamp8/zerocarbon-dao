@@ -4,7 +4,7 @@ body {
   font-family: Inter, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #7700ee;
+  background-color: #243447;
   color: #fff;
   overflow-x: hidden;
 }
@@ -104,6 +104,32 @@ h1 {
 
 .member-page form small {
   text-align: center;
+}
+
+.badge {
+  display: inline-block;
+  border: 1px solid #ffffff;
+  border-radius: 15px;
+  padding: 5px 5px;
+  margin-right: 5px;
+}
+
+.badge:focus-within {
+  outline: 2px solid blue;
+}
+
+.my-table {
+  border-collapse: separate;
+  border-spacing: 0 10px;
+}
+
+.my-table th {
+  font-weight: bold;
+  text-align: left;
+}
+
+.my-table td {
+  padding: 8px;
 }
 
 .card {

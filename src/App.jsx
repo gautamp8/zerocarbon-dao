@@ -1,4 +1,5 @@
 import {
+  useSDK,
   useAddress,
   useNetwork,
   useContract,
@@ -6,28 +7,57 @@ import {
   Web3Button,
   useNFTBalance,
 } from '@thirdweb-dev/react';
+import { 
+  Button,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Box,
+  Flex,
+  Text,
+  Badge,
+  CircularProgress 
+} from "@chakra-ui/react";
 import { ChainId } from '@thirdweb-dev/sdk';
 import { useState, useEffect, useMemo } from 'react';
 import { AddressZero } from '@ethersproject/constants';
+import { calculateEmissions } from './emissions';
+import contractABI from './data/contractABI.json';
+import { ethers } from "ethers";
 
 const App = () => {
   // Use the hooks thirdweb give us.
   const address = useAddress();
   const network = useNetwork();
+  // The SDK
+  // const eth = window.ethereum;
+
   console.log('👋 Address:', address);
   // Initialize our Edition Drop contract
   const editionDropAddress = '0x4989dC26bA459f89E21A86e75Cc9b9bE2eFB8FD4';
+  const ETHERSCAN_API_KEY = 'W43BF6PWCKDTI6D2BNGUYYGAQYRVUZSJIV';
+  const CARBON_INDEX_CONTRACT = "0xD7cd60E57Cde608aa16a42315c0e2C582fb7294C";
+  const API_ENDPOINT = "https://a6ef-2401-4900-1cb8-ea12-199a-c45a-4916-8a02.ngrok.io/premine"
+
+  // A Web3Provider wraps a standard Web3 provider, which is
+  // what MetaMask injects as window.ethereum into each page
+  const provider = new ethers.providers.Web3Provider(window.ethereum)
+  const carbonIndexContract = new ethers.Contract(CARBON_INDEX_CONTRACT, contractABI, provider);
+
   const { contract: editionDrop } = useContract(
     editionDropAddress,
     'edition-drop',
   );
   // Initialize our token contract
   const { contract: token } = useContract(
-    '0x9FC1D9dC4919Ae48b4d9E8f4D914FDd30c9047E6',
+    '0x5C552F653DD722CFab711F01dc2Edc5b155E6207',
     'token',
   );
   const { contract: vote } = useContract(
-    '0x4f2b9949c5ECf6E460BbB7a24342d578d5fD6C73',
+    '0xecED9A151438192D0E0459C5989c4DBc26a8d79f',
     'vote',
   );
   // Hook to check if the user has our NFT
@@ -41,19 +71,94 @@ const App = () => {
   const [memberTokenAmounts, setMemberTokenAmounts] = useState([]);
   // The array holding all of our members addresses.
   const [memberAddresses, setMemberAddresses] = useState([]);
+  // The object holding emissions
+  const [emissions, setEmissions] = useState({});
+  const [signer, setSigner] = useState({});
+  const [nftMetadata, setNftMetadata] = useState({});
 
   // A fancy function to shorten someones wallet address, no need to show the whole thing.
   const shortenAddress = (str) => {
-    return str.substring(0, 6) + '...' + str.substring(str.length - 4);
+    return str.substring(0, 10) + '...' + str.substring(str.length - 4);
   };
 
+  function RenderAddress(address) {
+    return <div className="badge"> Connected Address: {shortenAddress(address)} </div>
+  }
+
+  // Function to calculate emissions for given wallet
+  const handleEmissionsCalculation = async () => {
+    setIsLoading(true);
+    const result = await calculateEmissions({
+      address: "0xddeBcc9A3E5D9f315d6d440EEcd863C4D6941184",
+      etherscanAPIKey: ETHERSCAN_API_KEY
+    });
+    setEmissionsCalculated(true);
+    setEmissions(result);
+    setIsLoading(false);
+  };
+
+  // Amount Investment and offsetting related functions
+  const getNFTMetadata = async () => {
+    const request = {
+      method: 'POST',
+      headers: {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': 'http://localhost:3000',
+      },
+      body: JSON.stringify({
+        ...emissions,
+        address: address,
+        network: network?.[0].data.chain.id,
+      }),
+    };
+    console.log("Request body", JSON.stringify(request));
+    const response = await fetch(`${API_ENDPOINT}`, request);
+    return response.json();
+  };
+
+  const offsetEmissions = async () => {
+    // const invest_data = await getAmountToInvest()
+    setIsLoading(true);
+    setNFTMinted(false);
+
+    const nft_metadata = await getNFTMetadata();
+    setNftMetadata(nft_metadata)
+    await transferTokens(nft_metadata.nativeValue, nft_metadata.ciValue);
+    
+    setNFTMinted(true);
+    setNFTViewed(false);
+  }
+
+  async function transferTokens(nativeValue, ciValue) {
+    console.log("Signer", signer)
+    const carbonIndexSigner = carbonIndexContract.connect(signer);
+    const amountN = ethers.utils.parseUnits(nativeValue, 18);
+    const amountC = ethers.utils.parseUnits(ciValue, 18);
+    const transaction = await carbonIndexSigner.investv1(amountC, {"value": amountN});
+    const txn_receipt = await transaction.wait();
+    // console.log(JSON.stringify(transaction));
+    console.log("Transaction receipt - " + JSON.stringify(txn_receipt));
+  }
+
+  async function navigateToDAO() {
+    setNFTViewed(true);
+  }
+
+  // State management stuff
   const [proposals, setProposals] = useState([]);
   const [isVoting, setIsVoting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const [isEmissionsCalculated, setEmissionsCalculated] = useState(false);
+  const [isNFTMinted, setNFTMinted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isNFTViewed, setNFTViewed] = useState(false);
 
   // Retrieve all our existing proposals from the contract.
   useEffect(() => {
-    if (!hasClaimedNFT) {
+    console.log("Calling useEffect Ether");
+    provider.send("eth_requestAccounts", []).then(() => setSigner(provider.getSigner()));
+    if (!isNFTMinted) {
       return;
     }
 
@@ -68,11 +173,11 @@ const App = () => {
       }
     };
     getAllProposals();
-  }, [hasClaimedNFT, vote]);
+  }, [isNFTMinted, vote]);
 
   // We also need to check if the user already voted.
   useEffect(() => {
-    if (!hasClaimedNFT) {
+    if (!isNFTMinted) {
       return;
     }
 
@@ -96,11 +201,11 @@ const App = () => {
       }
     };
     checkIfUserHasVoted();
-  }, [hasClaimedNFT, proposals, address, vote]);
+  }, [isNFTMinted, proposals, address, vote]);
 
   // This useEffect grabs all the addresses of our members holding our NFT.
   useEffect(() => {
-    if (!hasClaimedNFT) {
+    if (!isNFTMinted) {
       return;
     }
 
@@ -117,11 +222,11 @@ const App = () => {
       }
     };
     getAllAddresses();
-  }, [hasClaimedNFT, editionDrop?.history]);
+  }, [isNFTMinted, editionDrop?.history]);
 
   // This useEffect grabs the # of token each member holds.
   useEffect(() => {
-    if (!hasClaimedNFT) {
+    if (!isNFTMinted) {
       return;
     }
 
@@ -135,7 +240,7 @@ const App = () => {
       }
     };
     getAllBalances();
-  }, [hasClaimedNFT, token?.history]);
+  }, [isNFTMinted, token?.history]);
 
   // Now, we combine the memberAddresses and memberTokenAmounts into a single array
   const memberList = useMemo(() => {
@@ -154,12 +259,12 @@ const App = () => {
     });
   }, [memberAddresses, memberTokenAmounts]);
 
-  if (address && network?.[0].data.chain.id !== ChainId.Goerli) {
+  if (address && network?.[0].data.chain.id !== ChainId.Mumbai) {
     return (
       <div className="unsupported-network">
-        <h2>Please connect to Goerli</h2>
+        <h2>Please connect to MATIC Mumbai Testnet</h2>
         <p>
-          This dapp only works on the Goerli network, please switch networks in
+          This dapp only works on the MATIC network, please switch networks in
           your connected wallet.
         </p>
       </div>
@@ -180,9 +285,116 @@ const App = () => {
     );
   }
 
+  // calculate emissions after getting the address
+  if (address && !isEmissionsCalculated) {
+    return (
+      <div className='landing'>
+        <h2>Calculate the emissions associated with your wallet</h2>
+        <br></br>
+        {RenderAddress(address)}
+        <br></br>
+        <div>
+          <Button
+            onClick={handleEmissionsCalculation}
+            isLoading={isLoading}
+            bg="blue.800"
+            color="blue.300"
+            fontSize="lg"
+            fontWeight="medium"
+            borderRadius="xl"
+            border="1px solid transparent"
+            _hover={{
+              borderColor: "blue.700",
+              color: "blue.400",
+            }}
+            _active={{
+              backgroundColor: "blue.800",
+              borderColor: "blue.700",
+            }}
+          >
+            {isLoading ? <CircularProgress isIndeterminate size="24px" color="teal.500" /> : "Calculate Emissions"}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+  
+  // Emissions are calculated and we need to display the values and allow users to offset
+  if (isEmissionsCalculated && emissions && !isNFTViewed) {
+    return !isNFTMinted ? (
+      <div className="landing">
+        <h1>Your emission💨 stats</h1>
+        <br></br>
+        {RenderAddress(address)}
+        <br></br>
+        <div >
+          <br></br>
+          <Box>
+            {DisplayData(emissions)}
+          </Box>
+          <br></br>
+          <Button
+            onClick={offsetEmissions}
+            isLoading={isLoading}
+            bg="blue.800"
+            color="blue.300"
+            fontSize="lg"
+            fontWeight="medium"
+            borderRadius="xl"
+            border="1px solid transparent"
+            _hover={{
+              borderColor: "blue.700",
+              color: "blue.400",
+            }}
+            _active={{
+              backgroundColor: "blue.800",
+              borderColor: "blue.700",
+            }}
+          >
+            {isLoading ? <CircularProgress isIndeterminate size="24px" color="teal.500" /> : "Offset Emissions"}
+          </Button>
+        </div>
+      </div>
+    ) :
+       (
+        <div className="landing">
+          <h1>Your NFT is here!</h1>
+          <br></br>
+          {RenderAddress(address)}
+          <br></br>
+          <div >
+            <br></br>
+            <Box>
+              {nftMetadata.openseaUrl}
+            </Box>
+            <br></br>
+            <Button
+              onClick={navigateToDAO}
+              bg="blue.800"
+              color="blue.300"
+              fontSize="lg"
+              fontWeight="medium"
+              borderRadius="xl"
+              border="1px solid transparent"
+              _hover={{
+                borderColor: "blue.700",
+                color: "blue.400",
+              }}
+              _active={{
+                backgroundColor: "blue.800",
+                borderColor: "blue.700",
+              }}
+            >
+              ZeroCarbon🌱 Dashboard
+            </Button>
+          </div>
+        </div>
+      )
+  }
+
   // If the user has already claimed their NFT we want to display the interal DAO page to them
   // only DAO members will see this. Render all the members + token amounts.
-  if (hasClaimedNFT) {
+  if (isNFTViewed) {
     return (
       <div className="member-page">
         <h2>ZeroCarbon🌱 Member Page</h2>
@@ -346,7 +558,7 @@ const App = () => {
         <Web3Button
           contractAddress={editionDropAddress}
           action={(contract) => {
-            contract.erc1155.claim(0, 1);
+            contract.erc721.invest(0, 1);
           }}
           onSuccess={() => {
             console.log(
@@ -362,6 +574,43 @@ const App = () => {
       </div>
     </div>
   );
+
+  function DisplayData(data) {
+    return (
+      <Flex justifyContent="center" alignItems="center">
+        <Table variant="simple">
+          <Thead>
+            <Tr>
+              <Th>Property</Th>
+              <Th>Value</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            <Tr>
+              <Td>kgCO2 </Td>
+              <Td style={{ padding: "4px" }}>{data.kgCO2}</Td>
+            </Tr>
+            <Tr>
+              <Td>Transactions Count </Td>
+              <Td style={{ padding: "4px" }}>{data.transactionsCount}</Td>
+            </Tr>
+            <Tr>
+              <Td>Gas Used </Td>
+              <Td style={{ padding: "4px" }}>{data.gasUsed}</Td>
+            </Tr>
+            <Tr>
+              <Td>Highest Block Number </Td>
+              <Td style={{ padding: "4px" }}>{data.highestBlockNumber}</Td>
+            </Tr>
+            <Tr>
+              <Td borderBottomWidth="1px">Lowest Block Number</Td>
+              <Td style={{ padding: "4px" }}>{data.lowestBlockNumber}</Td>
+            </Tr>
+          </Tbody>
+        </Table>
+      </Flex>
+    );
+  }
 };
 
 export default App;
