@@ -50,7 +50,7 @@ h1 {
 .member-page {
   display: flex;
   flex-direction: column;
-  width: 1500px;
+  width: 1400px;
   max-width: calc(100% - 1rem);
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -79,7 +79,7 @@ h1 {
     flex-direction: column;
   }
   .member-page > div > div {
-    width: 100%;
+    width: 80%;
   }
 }
 
@@ -161,7 +161,6 @@ td:nth-child(even) {
 }
 
 .btn-hero {
-  margin: auto;
   width: 250px;
 }
 

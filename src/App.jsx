@@ -16,6 +16,7 @@ import {
   CircularProgress, 
   Tr
 } from "@chakra-ui/react";
+import { PieChart } from 'react-minimal-pie-chart';
 import { ChainId } from '@thirdweb-dev/sdk';
 import { useState, useEffect, useMemo } from 'react';
 import { AddressZero } from '@ethersproject/constants';
@@ -53,7 +54,7 @@ const App = () => {
     'token',
   );
   const { contract: vote } = useContract(
-    '0xecED9A151438192D0E0459C5989c4DBc26a8d79f',
+    '0x1789eafF779234063ED2883Bb82c3049903E5F10',
     'vote',
   );
   // Hook to check if the user has our NFT
@@ -67,6 +68,46 @@ const App = () => {
   const [memberTokenAmounts, setMemberTokenAmounts] = useState([]);
   // The array holding all of our members addresses.
   const [memberAddresses, setMemberAddresses] = useState([]);
+  // Treasury State
+  const [treasuryData, setTreasuryData] = useState({
+    "chainId": 0,
+    "treasury_holdings": [
+      {
+        "symbol": "BCT",
+        "address": "0x785534e1AbB988aCEAE9A1a7FC81211Ab7C73eF1",
+        "balance": "101665021500000000001",
+        "pct": "30.0",
+        "price": "1.46"
+      },
+      {
+        "symbol": "NCT",
+        "address": "0x80a533187B2364054cb62475f3d8BC973d7BC443",
+        "balance": "135553362000000000001",
+        "pct": "40.0",
+        "price": "1.92"
+      },
+      {
+        "symbol": "MCO2",
+        "address": "0x7Dd70013C60724D31E6c59b07988A58b10e9370f",
+        "balance": "101665021500000000001",
+        "pct": "30.0",
+        "price": "1.9"
+      }
+    ],
+    "totalMinted": 2,
+    "carbonOffseted": "156.8 Tonne",
+    "indexPrice": "1.01",
+    "token_holders": [
+      {
+        address: "0x0Faef5cB418d2997Ba22e0f06059f9a4071bc2d7",
+        balance: "500.01"
+      },
+      {
+        address: "0x750AF4B3125f6F6A176581a446de11987EbAc2E3", 
+        balance: "435.67"
+      }
+    ]
+  });
   // The object holding emissions
   const [emissions, setEmissions] = useState({});
   const [signer, setSigner] = useState({});
@@ -114,7 +155,7 @@ const App = () => {
   };
 
   // Amount Investment and offsetting related functions
-  async function getTreasuryData() {
+  const getTreasuryData = async () => {
     const params = {chainId: network?.[0].data.chain.id}
     TREASURY_API_ENDPOINT.search = new URLSearchParams(params).toString();
     const response = await fetch(TREASURY_API_ENDPOINT);
@@ -209,60 +250,58 @@ const App = () => {
 
   // This useEffect grabs all the addresses of our members holding our NFT.
   useEffect(() => {
-    if (!isNFTMinted) {
-      return;
-    }
-
-    // const treasury = await getTreasuryData();
-    // Just like we did in the 7-airdrop-token.js file! Grab the users who hold our NFT
-    // with tokenId 0.
-    const getAllAddresses = async () => {
+    // if (!isNFTMinted) {
+    //   return;
+    // }
+    console.log("USE EFFECT TO GET TREASURY");
+    
+    const getAllTreasury = async () => {
       try {
-        const memberAddresses =
-          await editionDrop?.history.getAllClaimerAddresses(0);
-        setMemberAddresses(memberAddresses);
-        console.log('🚀 Members addresses', memberAddresses);
+        const treasuryData = await getTreasuryData();
+        console.log("TREASURY DATA DATA DATA", treasuryData);
+        setTreasuryData(treasuryData);
+        console.log('🚀 Treasury Data ', JSON.stringify(treasuryData));
       } catch (error) {
-        console.error('failed to get member list', error);
+        console.error('failed to get treasury', error);
       }
     };
-    getAllAddresses();
-  }, [isNFTMinted, editionDrop?.history]);
+    getAllTreasury();
+  }, [isNFTMinted]);
 
   // This useEffect grabs the # of token each member holds.
-  useEffect(() => {
-    if (!isNFTMinted) {
-      return;
-    }
+  // useEffect(() => {
+  //   if (!isNFTMinted) {
+  //     return;
+  //   }
 
-    const getAllBalances = async () => {
-      try {
-        const amounts = await token?.history.getAllHolderBalances();
-        setMemberTokenAmounts(amounts);
-        console.log('👜 Amounts', amounts);
-      } catch (error) {
-        console.error('failed to get member balances', error);
-      }
-    };
-    getAllBalances();
-  }, [isNFTMinted, token?.history]);
+  //   const getAllBalances = async () => {
+  //     try {
+  //       const amounts = await token?.history.getAllHolderBalances();
+  //       setMemberTokenAmounts(amounts);
+  //       console.log('👜 Amounts', amounts);
+  //     } catch (error) {
+  //       console.error('failed to get member balances', error);
+  //     }
+  //   };
+  //   getAllBalances();
+  // }, [isNFTMinted, token?.history]);
 
   // Now, we combine the memberAddresses and memberTokenAmounts into a single array
-  const memberList = useMemo(() => {
-    return memberAddresses.map((address) => {
-      // We're checking if we are finding the address in the memberTokenAmounts array.
-      // If we are, we'll return the amount of token the user has.
-      // Otherwise, return 0.
-      const member = memberTokenAmounts?.find(
-        ({ holder }) => holder === address,
-      );
+  // const memberList = useMemo(() => {
+  //   return memberAddresses.map((address) => {
+  //     // We're checking if we are finding the address in the memberTokenAmounts array.
+  //     // If we are, we'll return the amount of token the user has.
+  //     // Otherwise, return 0.
+  //     const member = memberTokenAmounts?.find(
+  //       ({ holder }) => holder === address,
+  //     );
 
-      return {
-        address,
-        tokenAmount: member?.balance.displayValue || '0',
-      };
-    });
-  }, [memberAddresses, memberTokenAmounts]);
+  //     return {
+  //       address,
+  //       tokenAmount: member?.balance.displayValue || '0',
+  //     };
+  //   });
+  // }, [memberAddresses, memberTokenAmounts]);
 
   if (address && network?.[0].data.chain.id !== ChainId.Mumbai) {
     return (
@@ -276,13 +315,15 @@ const App = () => {
     );
   }
 
+
   // This is the case where the user hasn't connected their wallet
   // to your web app. Let them call connectWallet.
   if (!address) {
     return (
       <div className="landing">
-        <h1>Welcome to ZeroCarb🌍n DAO</h1>
+        <h1>ZeroCarb🌍n DAO</h1>
         <h2> Connect your wallet to calculate your emissions </h2>
+        <br></br>
         <div className="btn-hero">
           <ConnectWallet/>
         </div>
@@ -398,13 +439,38 @@ const App = () => {
       )
   }
 
-  // If the user has already claimed their NFT we want to display the interal DAO page to them
-  // only DAO members will see this. Render all the members + token amounts.
-  if (isNFTViewed) {
+
+  if (isNFTViewed && treasuryData) {
+    const bct = treasuryData.treasury_holdings[0]
+    const nct = treasuryData.treasury_holdings[1]
+    const mco2 = treasuryData.treasury_holdings[2]
     return (
       <div className="member-page">
-        <h1>ZeroCarb🌍n Membership Page</h1>
-        <h2>Thank you for your contributions towards solving climate change</h2>
+        <h1>ZeroCarb🌍n Dashboard</h1>
+        <div className= "card" style={{ display: 'flex', flexDirection: "column", gap: '-5px', alignItems: 'center', width: '600px', height: '400px', boxShadow: '0px 0px 5px 2px rgba(0,0,0,0.25)', padding: '10px', margin: '10px'  }}>
+          <Text> <b> TREASURY CARBON SINK </b> </Text>
+          <PieChart
+            lineWidth={30}
+            animate="true"
+            label={({ dataEntry }) => `${dataEntry.title} (${dataEntry.value}%)`}
+            labelStyle={{
+              alignContent: 'start',
+              fontSize: '5px',
+              fill: '#000000',
+              position: 'absolute',
+            }}
+            data={[
+              { title: 'BCT', value: Number(bct.pct), color: '#65d16f'},
+              { title: 'NCT', value: Number(nct.pct), color: '#37adca'},
+              { title: 'MCO2', value: Number(mco2.pct), color: '#dbf324'},
+            ]}
+          />
+        <h3> Total CI Minted - {treasuryData.totalMinted} </h3>
+        <h3> Total CO2 Offsetted - {treasuryData.carbonOffseted} </h3>
+        </div>
+        
+        <br></br>
+        
         <div>
           <div>
             <h3>Member List</h3>
@@ -412,15 +478,15 @@ const App = () => {
               <thead>
                 <tr>
                   <th>Address</th>
-                  <th>Token Amount</th>
+                  <th>Holding Amount(CI)</th>
                 </tr>
               </thead>
               <tbody>
-                {memberList.map((member) => {
+                {treasuryData.token_holders.map((member) => {
                   return (
                     <tr key={member.address}>
                       <td>{shortenAddress(member.address)}</td>
-                      <td>{member.tokenAmount}</td>
+                      <td>{member.balance}</td>
                     </tr>
                   );
                 })}
