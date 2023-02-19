@@ -9,17 +9,12 @@ import {
 } from '@thirdweb-dev/react';
 import { 
   Button,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
   Box,
   Flex,
   Text,
   Badge,
-  CircularProgress 
+  CircularProgress, 
+  Tr
 } from "@chakra-ui/react";
 import { ChainId } from '@thirdweb-dev/sdk';
 import { useState, useEffect, useMemo } from 'react';
@@ -39,8 +34,9 @@ const App = () => {
   // Initialize our Edition Drop contract
   const editionDropAddress = '0x4989dC26bA459f89E21A86e75Cc9b9bE2eFB8FD4';
   const ETHERSCAN_API_KEY = 'W43BF6PWCKDTI6D2BNGUYYGAQYRVUZSJIV';
-  const CARBON_INDEX_CONTRACT = "0xD7cd60E57Cde608aa16a42315c0e2C582fb7294C";
-  const API_ENDPOINT = "https://a6ef-2401-4900-1cb8-ea12-199a-c45a-4916-8a02.ngrok.io/premine"
+  const CARBON_INDEX_CONTRACT = "0x976c0C8B5Cd37066720c479E030e39aC83104f66";
+  const PREMINE_API_ENDPOINT = "https://a6ef-2401-4900-1cb8-ea12-199a-c45a-4916-8a02.ngrok.io/premine"
+  const TREASURY_API_ENDPOINT = new URL("https://a6ef-2401-4900-1cb8-ea12-199a-c45a-4916-8a02.ngrok.io/treasury")
 
   // A Web3Provider wraps a standard Web3 provider, which is
   // what MetaMask injects as window.ethereum into each page
@@ -82,7 +78,7 @@ const App = () => {
   };
 
   function RenderAddress(address) {
-    return <div className="badge"> Connected Address: {shortenAddress(address)} </div>
+    return <div className="badge"> <b> Connected Address: {shortenAddress(address)} </b></div>
   }
 
   // Function to calculate emissions for given wallet
@@ -113,7 +109,15 @@ const App = () => {
       }),
     };
     console.log("Request body", JSON.stringify(request));
-    const response = await fetch(`${API_ENDPOINT}`, request);
+    const response = await fetch(`${PREMINE_API_ENDPOINT}`, request);
+    return response.json();
+  };
+
+  // Amount Investment and offsetting related functions
+  async function getTreasuryData() {
+    const params = {chainId: network?.[0].data.chain.id}
+    TREASURY_API_ENDPOINT.search = new URLSearchParams(params).toString();
+    const response = await fetch(TREASURY_API_ENDPOINT);
     return response.json();
   };
 
@@ -209,6 +213,7 @@ const App = () => {
       return;
     }
 
+    // const treasury = await getTreasuryData();
     // Just like we did in the 7-airdrop-token.js file! Grab the users who hold our NFT
     // with tokenId 0.
     const getAllAddresses = async () => {
@@ -276,7 +281,7 @@ const App = () => {
   if (!address) {
     return (
       <div className="landing">
-        <h1>Welcome to ZeroCarbon🌱</h1>
+        <h1>Welcome to ZeroCarb🌍n DAO</h1>
         <h2> Connect your wallet to calculate your emissions </h2>
         <div className="btn-hero">
           <ConnectWallet/>
@@ -289,7 +294,8 @@ const App = () => {
   if (address && !isEmissionsCalculated) {
     return (
       <div className='landing'>
-        <h2>Calculate the emissions associated with your wallet</h2>
+        <h1>ZeroCarb🌍n DAO</h1>
+        <h2>Calculate your historical and current emissions 📈</h2>
         <br></br>
         {RenderAddress(address)}
         <br></br>
@@ -323,7 +329,7 @@ const App = () => {
   if (isEmissionsCalculated && emissions && !isNFTViewed) {
     return !isNFTMinted ? (
       <div className="landing">
-        <h1>Your emission💨 stats</h1>
+        <h1>Emissions Stats📊</h1>
         <br></br>
         {RenderAddress(address)}
         <br></br>
@@ -365,7 +371,7 @@ const App = () => {
           <div >
             <br></br>
             <Box>
-              {nftMetadata.openseaUrl}
+              <a href={nftMetadata.openseaUrl} target="_blank"> <h2> View on OpenSea </h2> </a>
             </Box>
             <br></br>
             <Button
@@ -385,7 +391,7 @@ const App = () => {
                 borderColor: "blue.700",
               }}
             >
-              ZeroCarbon🌱 Dashboard
+              ZeroCarb🌍n Dashboard
             </Button>
           </div>
         </div>
@@ -397,8 +403,8 @@ const App = () => {
   if (isNFTViewed) {
     return (
       <div className="member-page">
-        <h2>ZeroCarbon🌱 Member Page</h2>
-        <p>There is no PlanetB. Thank you for your contributions towards solving climate change.</p>
+        <h1>ZeroCarb🌍n Membership Page</h1>
+        <h2>Thank you for your contributions towards solving climate change</h2>
         <div>
           <div>
             <h3>Member List</h3>
@@ -577,37 +583,37 @@ const App = () => {
 
   function DisplayData(data) {
     return (
-      <Flex justifyContent="center" alignItems="center">
-        <Table variant="simple">
-          <Thead>
-            <Tr>
-              <Th>Property</Th>
-              <Th>Value</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            <Tr>
-              <Td>kgCO2 </Td>
-              <Td style={{ padding: "4px" }}>{data.kgCO2}</Td>
-            </Tr>
-            <Tr>
-              <Td>Transactions Count </Td>
-              <Td style={{ padding: "4px" }}>{data.transactionsCount}</Td>
-            </Tr>
-            <Tr>
-              <Td>Gas Used </Td>
-              <Td style={{ padding: "4px" }}>{data.gasUsed}</Td>
-            </Tr>
-            <Tr>
-              <Td>Highest Block Number </Td>
-              <Td style={{ padding: "4px" }}>{data.highestBlockNumber}</Td>
-            </Tr>
-            <Tr>
-              <Td borderBottomWidth="1px">Lowest Block Number</Td>
-              <Td style={{ padding: "4px" }}>{data.lowestBlockNumber}</Td>
-            </Tr>
-          </Tbody>
-        </Table>
+      <Flex>
+        <table>
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>kgCO2 </td>
+              <td>{data.kgCO2}</td>
+            </tr>
+            <tr>
+              <td>transactions Count </td>
+              <td>{data.transactionsCount}</td>
+            </tr>
+            <tr>
+              <td>Gas Used </td>
+              <td>{data.gasUsed}</td>
+            </tr>
+            <tr>
+              <td>Highest Block Number </td>
+              <td>{data.highestBlockNumber}</td>
+            </tr>
+            <tr>
+              <td >Lowest Block Number</td>
+              <td>{data.lowestBlockNumber}</td>
+            </tr>
+          </tbody>
+        </table>
       </Flex>
     );
   }
